@@ -31,6 +31,7 @@
 | 난지 일별 주차 원본               | hmw/Data/한강공원 주차장 일별 이용 현황.csv                        | 1일           | 있음           | 시간별 타깃 생성을 위한 베이스 원본                   |
 | 서울시 지하철 시간대 승하차       | Data/서울시 지하철 호선별 역별 시간대별 승하차 인원 정보.csv       | 월-시간대     | 있음           | 난지 인근 역 패턴이 통합 데이터셋에 반영됨            |
 | 서울시 시영주차장 실시간 주차대수 | Data/서울시 시영주차장 실시간 주차대수 정보.csv                    | 스냅샷/실시간 | 있음           | 정적 참고용이며 난지 타깃 시계열로 직접 사용되진 않음 |
+| 난지 시간별 날씨 데이터           | ose/Data/open_meteo_nanji_2022~2025.csv                            | 1시간         | 있음           | 기온, 강수, 운량, 풍속, 복사량 등 시간별 기상 feature |
 
 ### feature 가용률
 
@@ -40,6 +41,7 @@
 | subway_feature_available  |           0.924 |
 | bike_feature_available    |           0.332 |
 | culture_feature_available |           0.188 |
+| weather_feature_available |           1     |
 
 ## 4. 시간별 데이터가 만들어진 방식
 
@@ -67,22 +69,6 @@
 - 시간별 통합 데이터 기간: `2022-01-01 00:00:00` ~ `2025-12-31 23:00:00`
 - 시간별 통합 데이터 행수: `34,920`
 
-### `train`, `valid`, `test`가 의미하는 것
-
-이번 분석의 `train`, `valid`, `test`는 서로 다른 파일 이름이 아니라, **같은 난지 시간별 통합 데이터셋을 연도 구간으로 나눈 학습/검증/평가용 데이터**입니다.
-
-- `train`: `2022-01-01 ~ 2023-12-31`에 해당하는 시간별 행
-- `valid`: `2024-01-01 ~ 2024-12-31`에 해당하는 시간별 행
-- `test`: `2025-01-01 ~ 2025-12-31`에 해당하는 시간별 행
-
-각 행에는 `datetime`, `date`, `year`, `month`, `hour`, `is_holiday`, `is_long_weekend`, `day_type`, `estimated_entries`, `estimated_active_cars`와 각종 외생 변수(버스/지하철/자전거/행사 관련 컬럼)가 들어 있습니다. 이후 모델링 단계에서 여기에 `base_value`, `month_weight`, `hour_weight`, `pattern_prior`, `corrected_pattern_prior` 같은 가중치 기반 파생 feature가 추가됩니다.
-
-용도는 아래처럼 나뉩니다.
-
-- `train`: 기본 패턴식(`base_value`) 학습, `month_weight`/`hour_weight` 계산, Ridge 회귀 학습
-- `valid`: alpha 선택과 모델 구조 비교
-- `test`: 최종 일반화 성능 평가
-
 ### 어떤 자료들을 근거로 시간별 데이터가 만들어졌는가
 
 | 자료 유형 | 파일/근거 | 역할 |
@@ -104,18 +90,18 @@
 
 ### 결측 상위 10개
 
-| feature                    |   missing_count |
-|:---------------------------|----------------:|
-| holiday_name               |           33144 |
-| bus_boardings              |            9781 |
-| bus_alightings             |            9781 |
-| subway_alightings          |               0 |
-| bike_rentals               |               0 |
-| bike_rental_minutes_sum    |               0 |
-| bike_rental_distance_m_sum |               0 |
-| bike_returns               |               0 |
-| event_count                |               0 |
-| free_event_count           |               0 |
+| feature              |   missing_count |
+|:---------------------|----------------:|
+| holiday_name         |           33144 |
+| bus_boardings        |            9781 |
+| bus_alightings       |            9781 |
+| dew_point_2m         |               0 |
+| snowfall             |               0 |
+| rain                 |               0 |
+| precipitation        |               0 |
+| apparent_temperature |               0 |
+| relative_humidity_2m |               0 |
+| weather_code         |               0 |
 
 해석:
 
@@ -194,97 +180,100 @@
 
 시간 가중치 표에는 `0~5시`가 포함되지 않습니다. 해당 시간은 운영시간 외 구간으로 보고 `hour_weight` 계산에서 제외했습니다.
 
-추가로 `23시 hour_weight`가 `22시`보다 다시 약간 높게 나타나는 이유는, `23시`의 실제 점유 추정값이 갑자기 커져서가 아닙니다. 현재 계산식은 `hour_weight = actual / pattern_prior`에 가깝기 때문에, `22시 -> 23시`로 갈 때 기본 패턴(`pattern_prior`)이 실제값보다 더 빠르게 감소하면 비율이 다시 커질 수 있습니다. 즉 `23시` 가중치 상승은 **마감 시간대에 실제 수요가 완전히 0으로 꺼지지 않는데, 기본 패턴식은 더 급하게 하락하는 구조**에서 생기는 보정 효과로 해석하는 것이 맞습니다.
-
 ## 8. 모델 비교
 
 | model_name        |   alpha | split   |    rmse |     mae |     r2 |
 |:------------------|--------:|:--------|--------:|--------:|-------:|
-| weighted_core     |    1000 | test    | 58.9561 | 29.5454 | 0.7313 |
-| weighted_extended |    1000 | test    | 57.5063 | 28.2016 | 0.7444 |
-| weighted_core     |    1000 | train   | 52.2203 | 27.1062 | 0.7905 |
-| weighted_extended |    1000 | train   | 50.9279 | 26.6095 | 0.8007 |
-| weighted_core     |    1000 | valid   | 54.4956 | 28.5653 | 0.7451 |
-| weighted_extended |    1000 | valid   | 51.114  | 27.7994 | 0.7757 |
+| weighted_core     |    1000 | test    | 59.5412 | 30.0448 | 0.726  |
+| weighted_extended |    1000 | test    | 56.5413 | 28.0469 | 0.7529 |
+| weighted_core     |    1000 | train   | 53.0312 | 27.5288 | 0.7839 |
+| weighted_extended |    1000 | train   | 50.335  | 26.1202 | 0.8053 |
+| weighted_core     |    1000 | valid   | 54.6437 | 28.9268 | 0.7437 |
+| weighted_extended |    1000 | valid   | 50.6555 | 28.6089 | 0.7797 |
 
 ### test 기준 직접 비교
 
 | model_name        |   alpha |    rmse |     mae |     r2 |
 |:------------------|--------:|--------:|--------:|-------:|
-| weighted_extended |    1000 | 57.5063 | 28.2016 | 0.7444 |
-| weighted_core     |    1000 | 58.9561 | 29.5454 | 0.7313 |
+| weighted_extended |    1000 | 56.5413 | 28.0469 | 0.7529 |
+| weighted_core     |    1000 | 59.5412 | 30.0448 | 0.726  |
 
 오프라인 성능 기준 최고 모델은 `weighted_extended` 이고, 선택 alpha는 `1000.0` 입니다.
 
-다만 **현재 시점까지의 정보만으로 1시간 뒤, 3시간 뒤, 하루 뒤, 이틀 뒤를 예측하는 실사용 구조**로 보면 운용 모델은 `weighted_core`로 두는 것이 더 적절합니다. `weighted_extended`에 들어가는 버스/지하철/자전거/행사 변수는 예측 시점의 미래값을 알 수 없기 때문입니다.
+다만 **미래 시점(1시간 뒤, 3시간 뒤, 하루 뒤, 이틀 뒤 등)을 현재 시점까지의 정보만으로 예측하는 실사용 구조**로 보면, 실제 운용 모델은 `weighted_core`로 두는 것이 더 적절합니다. 이유는 `weighted_extended`에 포함된 버스/지하철/자전거/행사/날씨 변수는 미래 시점의 값을 예측 순간에 모두 안정적으로 알 수 없기 때문입니다.
 
-### `weighted_core`와 `weighted_extended`의 차이
+### 높은 상관계수 feature 정리
 
-- `weighted_core`는 기본 패턴식(`base_value`)과 `month_weight`, `hour_weight`, `pattern_prior`, `corrected_pattern_prior`, `day_type_offday`만 사용하는 최소 구조입니다.
-- `weighted_extended`는 `weighted_core`에 더해 `hour_sin`, `hour_cos`, `month_sin`, `month_cos`, `is_holiday`, `is_long_weekend`, 버스/지하철/따릉이/행사 관련 변수와 availability flag를 함께 사용합니다.
-- 즉 `weighted_core`는 **시간 패턴 중심 모델**, `weighted_extended`는 **시간 패턴 + 외생 변수 확장 모델**로 이해하면 됩니다.
+이번 최종 학습에서는 `train(2022~2023)` 기준 절대 상관계수 `0.9` 이상인 feature 쌍이 있으면, 같은 모델 feature 세트 안에서 **타깃(`estimated_active_cars`)과의 절대 상관이 더 큰 feature를 남기고, 나머지는 제외**했습니다.
 
-### 왜 `year_weight`는 사용하지 않는가
-
-- 초기 비교에서는 `year_weight`를 별도 후보정값으로 둘 수 있는지 확인했지만, 최종 구조에서는 제외했습니다.
-- 가장 큰 이유는 `train(2022~2023)`에서 계산된 연도 차이가 매우 작았기 때문입니다. 실제 train 기준 `year_weight`는 `2022 = 0.9949`, `2023 = 1.0051` 수준으로 거의 `1`에 가까웠습니다.
-- 또한 검증/테스트 연도인 `2024`, `2025`는 train에서 보지 못한 연도라 순수 평가 구조에서는 별도 `year_weight`를 안정적으로 줄 수 없고, 결국 기본값 `1.0` 처리에 가까워집니다.
-- 이미 `month_weight`, `hour_weight`, 공휴일/연휴, 교통/행사 feature가 연도 간 수준 차이의 상당 부분을 흡수하고 있어 `year_weight`가 추가 설명력을 크게 늘리지 못했습니다.
-- 실제 성능도 `year_weight` 없이 구성한 현재 구조가 더 좋았습니다. `test(2025)` 기준 `weighted_extended`는 `R² = 0.7444`였고, 과거 `year_weight`를 넣어 비교했을 때보다 소폭 우세했습니다.
-- 사후적으로 연도 보정값을 강하게 곱하는 방식도 확인했지만, 특정 연도 전체를 단일 계수로 올리면 낮 시간대 과대예측이 커져 성능이 오히려 악화됐습니다.
-
-즉 이번 난지 데이터에서는 연도별 차이가 아예 없는 것이 아니라, **월별/시간대별 패턴과 외생 변수로 대부분 설명되고 있어 별도의 `year_weight`를 둘 실익이 작다**고 판단했습니다.
+| model_name        | kept_feature            | dropped_feature            |   abs_corr |   threshold |
+|:------------------|:------------------------|:---------------------------|-----------:|------------:|
+| weighted_core     | pattern_prior           | base_value                 |     0.9418 |         0.9 |
+| weighted_core     | pattern_prior           | corrected_pattern_prior    |     0.9752 |         0.9 |
+| weighted_extended | pattern_prior           | base_value                 |     0.9418 |         0.9 |
+| weighted_extended | pattern_prior           | corrected_pattern_prior    |     0.9752 |         0.9 |
+| weighted_extended | day_type_offday         | is_long_weekend            |     0.9779 |         0.9 |
+| weighted_extended | bus_alightings          | bus_boardings              |     0.989  |         0.9 |
+| weighted_extended | bike_rentals            | bike_returns               |     0.9922 |         0.9 |
+| weighted_extended | bike_rental_minutes_sum | bike_rentals               |     0.9607 |         0.9 |
+| weighted_extended | bike_rental_minutes_sum | bike_rental_distance_m_sum |     0.9926 |         0.9 |
+| weighted_extended | temperature_2m          | dew_point_2m               |     0.9279 |         0.9 |
+| weighted_extended | temperature_2m          | apparent_temperature       |     0.9928 |         0.9 |
+| weighted_extended | precipitation           | rain                       |     0.9989 |         0.9 |
+| weighted_extended | pressure_msl            | surface_pressure           |     0.9999 |         0.9 |
+| weighted_extended | wind_gusts_10m          | wind_speed_10m             |     0.9158 |         0.9 |
+| weighted_extended | shortwave_radiation     | direct_radiation           |     0.9578 |         0.9 |
 
 ## 9. 추천 모델 해석
 
 ### 어떤 모델을 실사용용으로 볼 것인가
 
 - `weighted_extended`는 오프라인 평가에서는 더 높은 `R²`를 보였지만, 미래 시점의 외생 변수를 실제 예측 순간에 알 수 없다는 한계가 있습니다.
-- 행사 정보는 과거 특정 시기의 수요 급증을 설명하는 데는 도움이 되지만, 미래 시점의 입력값으로는 안정적으로 사용할 수 없습니다.
+- 특히 행사 정보와 시간별 날씨 정보는 사후적으로 해석할 때는 유용하지만, "3시간 뒤", "하루 뒤", "이틀 뒤"를 현재 시점 정보만으로 예측해야 하는 구조에서는 직접 feature로 넣기 어렵습니다.
 - 따라서 이번 프로젝트의 **실사용용 미래 예측 모델**은 `weighted_core`로 보는 것이 맞습니다.
-- `weighted_extended`는 비교용 참고 모델, 또는 "왜 특정 기간 예측이 달라졌는지"를 해석하는 분석용 모델로 두는 편이 안전합니다.
-- 같은 이유로 `lag`, `rolling`, 자기회귀형 시계열 feature도 이번 구조에는 넣지 않았습니다.
+- `weighted_extended`는 "왜 특정 시기 오차가 줄었는지"를 확인하는 참고 모델, 또는 과거 데이터 해석용 비교 모델로만 두는 편이 안전합니다.
+- 같은 이유로 `lag`, `rolling`, 자기회귀형 시계열 feature도 이번 구조에는 넣지 않았습니다. 이런 값들은 예측 시점 이후의 경로를 전제하거나, 시계열 모델로 구조가 바뀌기 때문입니다.
 
 ### 중요 feature 상위 10개
 
 | feature                  |   coefficient |   importance_ratio |
 |:-------------------------|--------------:|-------------------:|
-| month_weight             |       39.3905 |             0.2654 |
-| is_holiday               |      -24.6566 |             0.1661 |
-| hour_weight              |       22.4993 |             0.1516 |
-| is_long_weekend          |      -18.9172 |             0.1275 |
-| day_type_offday          |       14.5401 |             0.098  |
-| month_cos                |        8.7967 |             0.0593 |
-| hour_cos                 |        7.2325 |             0.0487 |
-| hour_sin                 |        5.9271 |             0.0399 |
-| subway_feature_available |       -3.4048 |             0.0229 |
-| month_sin                |        1.0411 |             0.007  |
+| snow_depth               |      -71.6142 |             0.2786 |
+| hour_weight              |       59.4609 |             0.2313 |
+| month_weight             |       36.9751 |             0.1438 |
+| snowfall                 |       28.856  |             0.1122 |
+| is_holiday               |      -18.8699 |             0.0734 |
+| month_cos                |       12.9056 |             0.0502 |
+| hour_cos                 |        7.8804 |             0.0307 |
+| hour_sin                 |        6.334  |             0.0246 |
+| subway_feature_available |       -3.4656 |             0.0135 |
+| month_sin                |        3.1923 |             0.0124 |
 
 ### 2025 오차가 큰 시간대 상위 8개
 
 |   hour |   core_abs_error |   extended_abs_error |
 |-------:|-----------------:|---------------------:|
-|     15 |          62.638  |              60.2854 |
-|     14 |          62.6501 |              59.969  |
-|     16 |          61.4455 |              59.1305 |
-|     17 |          59.6861 |              57.685  |
-|     13 |          60.2271 |              56.9471 |
-|     18 |          56.4395 |              54.4885 |
-|     12 |          53.9819 |              50.5883 |
-|     19 |          50.2035 |              47.9648 |
+|     15 |          63.0892 |              58.3064 |
+|     16 |          63.1185 |              58.0314 |
+|     17 |          62.1346 |              57.2977 |
+|     14 |          61.8647 |              57.1962 |
+|     18 |          58.6647 |              54.1142 |
+|     13 |          58.8771 |              54.0233 |
+|     12 |          53.6039 |              49.6898 |
+|     19 |          51.3869 |              45.2467 |
 
 ### 2025 오차가 큰 월 상위 8개
 
 |   month |   core_abs_error |   extended_abs_error |
 |--------:|-----------------:|---------------------:|
-|       9 |          48.3255 |              48.5597 |
-|       4 |          42.6786 |              41.3018 |
-|       6 |          39.6613 |              36.4952 |
-|      10 |          34.5808 |              34.3128 |
-|       5 |          35.5269 |              32.438  |
-|       8 |          30.2214 |              28.2281 |
-|       7 |          29.099  |              25.5636 |
-|       3 |          24.6747 |              22.3769 |
+|       9 |          49.6558 |              51.0024 |
+|       4 |          42.6816 |              38.256  |
+|       6 |          38.5284 |              35.392  |
+|      10 |          35.5055 |              33.6522 |
+|       5 |          35.9152 |              32.7722 |
+|       8 |          29.3399 |              26.9781 |
+|       7 |          28.6033 |              25.5594 |
+|       3 |          25.0353 |              21.4082 |
 
 ## 10. 여유 주차공간 수를 구하는 방법
 
@@ -336,13 +325,13 @@
 ## 11. 결론
 
 - 난지 주차장의 사용 가능한 시간별 타깃은 **이미 구축된 추정형 시간별 데이터셋**이며, 직접 실측 시간 로그는 현재 워크스페이스에서 확인되지 않았습니다.
-- 이 시간별 데이터는 일별 주차 원본, 방법론 문서, 컬럼 사전, 대중교통/행사/주변 인프라 자료를 근거로 새롭게 구성된 통합 데이터입니다.
+- 이 시간별 데이터는 일별 주차 원본, 방법론 문서, 컬럼 사전, 대중교통/행사/주변 인프라 자료와 별도 수집한 시간별 날씨 데이터를 근거로 구성된 통합 데이터입니다.
 - 이번 분석에서는 `0~5시`를 운영시간 외 구간으로 보고, 점유량 관련 계산에서 `0`으로 간주했으며 `hour_weight` 산출에서도 제외했고 최종 예측값도 `0`으로 고정했습니다.
 - 누수를 막기 위해 `month/year/hour weight`는 `train(2022-2023)` 기준으로만 계산했습니다.
 - 이번 정리에서는 `year_weight`를 제외하고 `month_weight`와 `hour_weight` 중심 구조만 남겼습니다.
 - 최종 `test(2025)` 기준에서는 `weighted_extended`이 가장 높은 성능을 보였습니다.
 - 다만 현재 시점까지의 정보만으로 `1시간 뒤 ~ 48시간 뒤`를 예측하는 실사용 관점에서는, 미래 시점 외생 변수를 몰라도 되는 `weighted_core`를 운용 모델로 두는 것이 더 적절합니다.
-- 행사 데이터와 교통 관련 변수는 미래 예측용 입력값이라기보다, 과거 수요 변동과 시기 차이를 설명하는 참고 근거로 해석하는 편이 맞습니다.
+- 행사 데이터와 교통/날씨 관련 변수는 실시간 미래예측 입력값이라기보다, 과거 수요 변동과 연도/시기 차이를 설명하는 참고 근거로 해석하는 편이 맞습니다.
 - `lag`, `rolling` 같은 시계열 패턴 변수는 이번 설계 원칙상 사용하지 않았습니다.
 - 다만 현재 타깃 자체가 `estimated_active_cars`인 만큼, 결과 해석은 **실제 점유면수 예측**이 아니라 **추정 점유량 예측**으로 다루는 것이 안전합니다.
 
@@ -352,6 +341,7 @@
 - 노트북: `hmw/Note/nanji_ML.ipynb`
 - 지표 CSV: `hmw/Note/nanji_outputs/nanji_model_metrics.csv`
 - 가중치 CSV: `hmw/Note/nanji_outputs/nanji_weight_table.csv`
+- feature pruning CSV: `hmw/Note/nanji_outputs/nanji_feature_pruning.csv`
 - 예측 CSV: `hmw/Note/nanji_outputs/nanji_test_predictions.csv`
 - 그림:
   - `hmw/Note/nanji_outputs/nanji_month_weights.png`
