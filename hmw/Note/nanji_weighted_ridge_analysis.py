@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DATASET_PATH = ROOT / "ksm/nanji_hourly_modeling/nanji_hourly_model_dataset_2020_2026.csv"
 METHODOLOGY_PATH = ROOT / "ksm/nanji_hourly_modeling/nanji_hourly_dataset_methodology.md"
 RAW_DAILY_PATH = ROOT / "hmw/Data/한강공원 주차장 일별 이용 현황.csv"
+WEATHER_DATA_DIR = ROOT / "ose/Data"
 OUTPUT_DIR = ROOT / "hmw/Note/nanji_outputs"
 REPORT_PATH = ROOT / "hmw/Note/nanji_weighted_ridge_modeling_report.md"
 os.environ.setdefault("MPLCONFIGDIR", str(OUTPUT_DIR / ".mplconfig"))
@@ -31,6 +32,30 @@ ALPHA_GRID = [0.001, 0.01, 0.1, 1.0, 10.0, 100.0, 1000.0]
 DAY_TYPE_ORDER = ["weekday", "offday"]
 TARGET = "estimated_active_cars"
 TARGET_LABEL = "estimated_active_cars (추정 활성 차량 수)"
+WEATHER_FEATURE_COLUMNS = [
+    "temperature_2m",
+    "relative_humidity_2m",
+    "dew_point_2m",
+    "apparent_temperature",
+    "precipitation",
+    "rain",
+    "snowfall",
+    "snow_depth",
+    "weather_code",
+    "pressure_msl",
+    "surface_pressure",
+    "cloud_cover",
+    "cloud_cover_low",
+    "cloud_cover_mid",
+    "cloud_cover_high",
+    "wind_speed_10m",
+    "wind_direction_10m",
+    "wind_gusts_10m",
+    "shortwave_radiation",
+    "direct_radiation",
+    "diffuse_radiation",
+    "sunshine_duration",
+]
 
 
 def non_negative_only(values: np.ndarray) -> np.ndarray:
@@ -54,6 +79,16 @@ def calc_metrics(y_true: pd.Series, y_pred: np.ndarray) -> dict[str, float]:
 def load_dataset() -> pd.DataFrame:
     df = pd.read_csv(DATASET_PATH, parse_dates=["datetime", "date"])
     df = df[df["year"].between(2022, 2025)].copy()
+    weather_frames = []
+    for year in range(2022, 2026):
+        weather_path = WEATHER_DATA_DIR / f"open_meteo_nanji_{year}.csv"
+        weather_df = pd.read_csv(weather_path, parse_dates=["datetime", "date"])
+        weather_frames.append(weather_df)
+    weather = pd.concat(weather_frames, ignore_index=True)
+    weather = weather.sort_values("datetime").drop_duplicates("datetime").reset_index(drop=True)
+    weather_keep_cols = ["datetime", "weather_code_label", *WEATHER_FEATURE_COLUMNS]
+    df = df.merge(weather[weather_keep_cols], on="datetime", how="left")
+    df["weather_feature_available"] = df["temperature_2m"].notna().astype(int)
     df["day_type"] = np.where(df["is_holiday_or_weekend"].eq(1), "offday", "weekday")
     df["split"] = np.select(
         [
@@ -185,8 +220,65 @@ def feature_sets() -> dict[str, list[str]]:
         "subway_feature_available",
         "bike_feature_available",
         "culture_feature_available",
+        *WEATHER_FEATURE_COLUMNS,
+        "weather_feature_available",
     ]
     return {"weighted_core": core, "weighted_extended": extended}
+
+
+def prune_correlated_features(
+    train_df: pd.DataFrame,
+    feature_map: dict[str, list[str]],
+    threshold: float = 0.9,
+) -> tuple[dict[str, list[str]], pd.DataFrame]:
+    pruned_map: dict[str, list[str]] = {}
+    pruning_rows: list[dict[str, object]] = []
+
+    for model_name, columns in feature_map.items():
+        corr = train_df[columns].corr().abs()
+        target_corr = train_df[columns].corrwith(train_df[TARGET]).abs()
+        kept: list[str] = []
+        dropped: set[str] = set()
+
+        for col in columns:
+            if col in dropped:
+                continue
+            candidate = col
+            for other in columns:
+                if other == candidate or other in dropped or other in kept:
+                    continue
+                corr_value = corr.loc[candidate, other]
+                if pd.notna(corr_value) and corr_value >= threshold:
+                    if float(target_corr.get(other, 0.0)) > float(target_corr.get(candidate, 0.0)):
+                        dropped.add(candidate)
+                        pruning_rows.append(
+                            {
+                                "model_name": model_name,
+                                "kept_feature": other,
+                                "dropped_feature": candidate,
+                                "abs_corr": float(corr_value),
+                                "threshold": threshold,
+                            }
+                        )
+                        candidate = other
+                    else:
+                        dropped.add(other)
+                        pruning_rows.append(
+                            {
+                                "model_name": model_name,
+                                "kept_feature": candidate,
+                                "dropped_feature": other,
+                                "abs_corr": float(corr_value),
+                                "threshold": threshold,
+                            }
+                        )
+            if candidate not in dropped and candidate not in kept:
+                kept.append(candidate)
+
+        pruned_map[model_name] = kept
+
+    pruning_df = pd.DataFrame(pruning_rows)
+    return pruned_map, pruning_df
 
 
 def prepare_split_frames(df: pd.DataFrame, base_df: pd.DataFrame, month_weight_map: dict[int, float], hour_weight_map: dict[int, float]) -> dict[str, pd.DataFrame]:
@@ -199,12 +291,15 @@ def prepare_split_frames(df: pd.DataFrame, base_df: pd.DataFrame, month_weight_m
     return splits
 
 
-def train_models(processed_splits: dict[str, pd.DataFrame]) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+def train_models(
+    processed_splits: dict[str, pd.DataFrame],
+    feature_map: dict[str, list[str]],
+) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
     tuning_rows = []
     metric_rows = []
     importance_rows = []
 
-    for model_name, columns in feature_sets().items():
+    for model_name, columns in feature_map.items():
         best_alpha = None
         best_model = None
         best_valid_rmse = math.inf
@@ -313,6 +408,13 @@ def data_availability_summary(df: pd.DataFrame) -> pd.DataFrame:
             "availability": "있음",
             "note": "정적 참고용이며 난지 타깃 시계열로 직접 사용되진 않음",
         },
+        {
+            "asset": "난지 시간별 날씨 데이터",
+            "path": "ose/Data/open_meteo_nanji_2022~2025.csv",
+            "granularity": "1시간",
+            "availability": "있음",
+            "note": "기온, 강수, 운량, 풍속, 복사량 등 시간별 기상 feature",
+        },
     ]
     availability_df = pd.DataFrame(rows)
     feature_rate = (
@@ -322,6 +424,7 @@ def data_availability_summary(df: pd.DataFrame) -> pd.DataFrame:
                 "subway_feature_available",
                 "bike_feature_available",
                 "culture_feature_available",
+                "weather_feature_available",
             ]
         ]
         .mean()
@@ -395,7 +498,8 @@ def main() -> None:
 
     month_weight_map, hour_weight_map, all_base = build_weight_maps(train_df, base_df, TARGET)
     processed_splits = prepare_split_frames(df, base_df, month_weight_map, hour_weight_map)
-    tuning_df, metrics_df, importance_df = train_models(processed_splits)
+    feature_map, pruning_df = prune_correlated_features(processed_splits["train"], feature_sets(), threshold=0.9)
+    tuning_df, metrics_df, importance_df = train_models(processed_splits, feature_map)
 
     weight_rows = []
     weight_rows.extend({"weight_type": "month_weight", "key": k, "value": v} for k, v in month_weight_map.items())
@@ -458,6 +562,7 @@ def main() -> None:
     metrics_df.to_csv(OUTPUT_DIR / "nanji_model_metrics.csv", index=False, encoding="utf-8-sig")
     tuning_df.to_csv(OUTPUT_DIR / "nanji_model_tuning.csv", index=False, encoding="utf-8-sig")
     importance_df.to_csv(OUTPUT_DIR / "nanji_feature_importance.csv", index=False, encoding="utf-8-sig")
+    pruning_df.to_csv(OUTPUT_DIR / "nanji_feature_pruning.csv", index=False, encoding="utf-8-sig")
     weight_df.to_csv(OUTPUT_DIR / "nanji_weight_table.csv", index=False, encoding="utf-8-sig")
     test_prediction_base.to_csv(OUTPUT_DIR / "nanji_test_predictions.csv", index=False, encoding="utf-8-sig")
 
@@ -596,14 +701,20 @@ def main() -> None:
 
 오프라인 성능 기준 최고 모델은 `{recommended_model}` 이고, 선택 alpha는 `{recommended_alpha}` 입니다.
 
-다만 **미래 시점(1시간 뒤, 3시간 뒤, 하루 뒤, 이틀 뒤 등)을 현재 시점까지의 정보만으로 예측하는 실사용 구조**로 보면, 실제 운용 모델은 `weighted_core`로 두는 것이 더 적절합니다. 이유는 `weighted_extended`에 포함된 버스/지하철/자전거/행사 변수는 미래 시점의 값을 예측 순간에 알 수 없기 때문입니다.
+다만 **미래 시점(1시간 뒤, 3시간 뒤, 하루 뒤, 이틀 뒤 등)을 현재 시점까지의 정보만으로 예측하는 실사용 구조**로 보면, 실제 운용 모델은 `weighted_core`로 두는 것이 더 적절합니다. 이유는 `weighted_extended`에 포함된 버스/지하철/자전거/행사/날씨 변수는 미래 시점의 값을 예측 순간에 모두 안정적으로 알 수 없기 때문입니다.
+
+### 높은 상관계수 feature 정리
+
+이번 최종 학습에서는 `train(2022~2023)` 기준 절대 상관계수 `0.9` 이상인 feature 쌍이 있으면, 같은 모델 feature 세트 안에서 **타깃(`estimated_active_cars`)과의 절대 상관이 더 큰 feature를 남기고, 나머지는 제외**했습니다.
+
+{to_markdown_table(pruning_df.head(20), digits=4) if not pruning_df.empty else "제거된 feature 없음"}
 
 ## 9. 추천 모델 해석
 
 ### 어떤 모델을 실사용용으로 볼 것인가
 
 - `weighted_extended`는 오프라인 평가에서는 더 높은 `R²`를 보였지만, 미래 시점의 외생 변수를 실제 예측 순간에 알 수 없다는 한계가 있습니다.
-- 특히 행사 정보는 사후적으로 해석할 때는 유용하지만, "3시간 뒤", "하루 뒤", "이틀 뒤"를 현재 시점 정보만으로 예측해야 하는 구조에서는 직접 feature로 넣기 어렵습니다.
+- 특히 행사 정보와 시간별 날씨 정보는 사후적으로 해석할 때는 유용하지만, "3시간 뒤", "하루 뒤", "이틀 뒤"를 현재 시점 정보만으로 예측해야 하는 구조에서는 직접 feature로 넣기 어렵습니다.
 - 따라서 이번 프로젝트의 **실사용용 미래 예측 모델**은 `weighted_core`로 보는 것이 맞습니다.
 - `weighted_extended`는 "왜 특정 시기 오차가 줄었는지"를 확인하는 참고 모델, 또는 과거 데이터 해석용 비교 모델로만 두는 편이 안전합니다.
 - 같은 이유로 `lag`, `rolling`, 자기회귀형 시계열 feature도 이번 구조에는 넣지 않았습니다. 이런 값들은 예측 시점 이후의 경로를 전제하거나, 시계열 모델로 구조가 바뀌기 때문입니다.
@@ -670,13 +781,13 @@ def main() -> None:
 ## 11. 결론
 
 - 난지 주차장의 사용 가능한 시간별 타깃은 **이미 구축된 추정형 시간별 데이터셋**이며, 직접 실측 시간 로그는 현재 워크스페이스에서 확인되지 않았습니다.
-- 이 시간별 데이터는 일별 주차 원본, 방법론 문서, 컬럼 사전, 대중교통/행사/주변 인프라 자료를 근거로 새롭게 구성된 통합 데이터입니다.
+- 이 시간별 데이터는 일별 주차 원본, 방법론 문서, 컬럼 사전, 대중교통/행사/주변 인프라 자료와 별도 수집한 시간별 날씨 데이터를 근거로 구성된 통합 데이터입니다.
 - 이번 분석에서는 `0~5시`를 운영시간 외 구간으로 보고, 점유량 관련 계산에서 `0`으로 간주했으며 `hour_weight` 산출에서도 제외했고 최종 예측값도 `0`으로 고정했습니다.
 - 누수를 막기 위해 `month/year/hour weight`는 `train(2022-2023)` 기준으로만 계산했습니다.
 - 이번 정리에서는 `year_weight`를 제외하고 `month_weight`와 `hour_weight` 중심 구조만 남겼습니다.
 - 최종 `test(2025)` 기준에서는 `{recommended_model}`이 가장 높은 성능을 보였습니다.
 - 다만 현재 시점까지의 정보만으로 `1시간 뒤 ~ 48시간 뒤`를 예측하는 실사용 관점에서는, 미래 시점 외생 변수를 몰라도 되는 `weighted_core`를 운용 모델로 두는 것이 더 적절합니다.
-- 행사 데이터와 교통 관련 변수는 실시간 미래예측 입력값이라기보다, 과거 수요 변동과 연도/시기 차이를 설명하는 참고 근거로 해석하는 편이 맞습니다.
+- 행사 데이터와 교통/날씨 관련 변수는 실시간 미래예측 입력값이라기보다, 과거 수요 변동과 연도/시기 차이를 설명하는 참고 근거로 해석하는 편이 맞습니다.
 - `lag`, `rolling` 같은 시계열 패턴 변수는 이번 설계 원칙상 사용하지 않았습니다.
 - 다만 현재 타깃 자체가 `estimated_active_cars`인 만큼, 결과 해석은 **실제 점유면수 예측**이 아니라 **추정 점유량 예측**으로 다루는 것이 안전합니다.
 
@@ -686,6 +797,7 @@ def main() -> None:
 - 노트북: `hmw/Note/nanji_ML.ipynb`
 - 지표 CSV: `hmw/Note/nanji_outputs/nanji_model_metrics.csv`
 - 가중치 CSV: `hmw/Note/nanji_outputs/nanji_weight_table.csv`
+- feature pruning CSV: `hmw/Note/nanji_outputs/nanji_feature_pruning.csv`
 - 예측 CSV: `hmw/Note/nanji_outputs/nanji_test_predictions.csv`
 - 그림:
   - `hmw/Note/nanji_outputs/nanji_month_weights.png`
