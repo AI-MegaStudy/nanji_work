@@ -1,4 +1,5 @@
-# 파일 실행하면 ose/weather_outputs 폴더 생성 및 예보 결과 파일 저장되어 내용 확인 가능합니다. (json, md 파일 저장됨)
+# 단기예보, 중기예보 수집 스크립트
+# 파일 실행하면 ose/weather_outputs 폴더 생성 및 예보 결과 json, md 파일 저장되어 내용 확인 가능합니다.
 
 import json
 import os
