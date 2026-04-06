@@ -1,0 +1,22 @@
+{
+  "recommended_model": "weighted_extended",
+  "recommended_alpha": 1000.0,
+  "test_metrics": [
+    {
+      "model_name": "weighted_core",
+      "alpha": 1000.0,
+      "split": "test",
+      "rmse": 58.956105071096566,
+      "mae": 29.545367162502156,
+      "r2": 0.7313210320551264
+    },
+    {
+      "model_name": "weighted_extended",
+      "alpha": 1000.0,
+      "split": "test",
+      "rmse": 57.506344081559874,
+      "mae": 28.201645018682125,
+      "r2": 0.7443724720624649
+    }
+  ]
+}
