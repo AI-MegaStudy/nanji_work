@@ -1,0 +1,6 @@
+*.csv
+*.log
+__pycache__/
+*.pyc
+.env</content>
+<parameter name="filePath">/Users/electrozone/Desktop/nanji_work/yeeun/0406/requirements.txt
