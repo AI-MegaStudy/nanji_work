@@ -1,0 +1,16 @@
+﻿model_name,kept_feature,dropped_feature,abs_corr,threshold
+weighted_core,pattern_prior,base_value,0.9417879051108001,0.9
+weighted_core,pattern_prior,corrected_pattern_prior,0.9751613606275811,0.9
+weighted_extended,pattern_prior,base_value,0.9417879051108001,0.9
+weighted_extended,pattern_prior,corrected_pattern_prior,0.9751613606275811,0.9
+weighted_extended,day_type_offday,is_long_weekend,0.9778803607803983,0.9
+weighted_extended,bus_alightings,bus_boardings,0.9889839351115165,0.9
+weighted_extended,bike_rentals,bike_returns,0.9921786366327171,0.9
+weighted_extended,bike_rental_minutes_sum,bike_rentals,0.960733867289113,0.9
+weighted_extended,bike_rental_minutes_sum,bike_rental_distance_m_sum,0.9925525612810718,0.9
+weighted_extended,temperature_2m,dew_point_2m,0.927875034353256,0.9
+weighted_extended,temperature_2m,apparent_temperature,0.992778007464715,0.9
+weighted_extended,precipitation,rain,0.9989078225435001,0.9
+weighted_extended,pressure_msl,surface_pressure,0.9999304586191323,0.9
+weighted_extended,wind_gusts_10m,wind_speed_10m,0.915824008258951,0.9
+weighted_extended,shortwave_radiation,direct_radiation,0.9578386165317632,0.9
