@@ -1,0 +1,2 @@
+﻿target,q1,q3,iqr,upper_bound,regular_max,candidate_count,special_case_count,outlier_count,rule
+estimated_active_cars,0.025621988029256776,118.84723067933446,118.8216086913052,297.07964371629225,296.9826727341259,1733,1733,0,"후보를 작은 값부터 순서대로 보며 직전 anchor와의 차이가 IQR보다 크면 이상치 제거, 아니면 특이치 유지 후 anchor 갱신"
