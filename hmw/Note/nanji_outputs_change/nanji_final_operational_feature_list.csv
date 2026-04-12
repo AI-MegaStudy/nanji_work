@@ -1,0 +1,11 @@
+﻿feature,feature_group
+pattern_prior,pattern
+month_weight,pattern
+hour_weight,pattern
+day_type_offday,pattern
+hour_sin,cycle
+hour_cos,cycle
+month_sin,cycle
+month_cos,cycle
+is_holiday,calendar
+wind_gusts_10m,weather
