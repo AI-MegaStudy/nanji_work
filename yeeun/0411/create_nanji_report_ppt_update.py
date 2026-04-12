@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE_DIR = ROOT / "hmw" / "Note"
 OUTPUT_DIR = Path(__file__).resolve().parent
 SOURCE_OUT = SOURCE_DIR / "nanji_outputs"
-PPT_PATH = OUTPUT_DIR / "nanji_weighted_ridge_modeling_report_presentation_업데이트.pptx"
+PPT_PATH = OUTPUT_DIR / "난지_주차예측_보고서_업데이트_가로형.pptx"
 MODEL_COMPARE_IMG = OUTPUT_DIR / "nanji_operational_model_compare_update.png"
 FEATURE_GROUP_IMG = OUTPUT_DIR / "nanji_operational_feature_groups_update.png"
 
@@ -154,8 +154,8 @@ def build_ppt():
     feature_pruning = pd.read_csv(SOURCE_OUT / "nanji_feature_pruning.csv")
 
     prs = Presentation()
-    prs.slide_width = Inches(11.69)
-    prs.slide_height = Inches(8.27)
+    prs.slide_width = Inches(13.333)
+    prs.slide_height = Inches(7.5)
     blank = prs.slide_layouts[6]
 
     slide = prs.slides.add_slide(blank)
