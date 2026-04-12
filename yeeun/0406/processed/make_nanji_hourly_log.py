@@ -19,9 +19,9 @@ from datetime import datetime
 from pathlib import Path
 
 # 경로 설정
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "Data"
+DATA_DIR = Path(__file__).resolve().parents[3] / "Data"
 OUTPUT_DIR = DATA_DIR / "processed"
-OUTPUT_DIR.mkdir(exist_ok=True)
+OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
 def process_realtime_to_hourly(input_file: str, output_file: str):
     """실시간 데이터를 시간별 로그로 변환"""

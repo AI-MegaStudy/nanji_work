@@ -1,0 +1,40 @@
+﻿feature,n,nunique,zero_ratio,skewness,kurtosis,normaltest_pvalue,normality_class,normalization_need,decision_reason
+bike_rental_distance_m_sum,34920,11593,0.668041237113402,3.2679349130200337,12.30065654799521,0.0,strong_right_skew,log1p_candidate,양수 기반 강한 우측 왜도라 필요시 log1p 변환을 검토할 수 있음
+bike_rental_minutes_sum,34920,8278,0.668041237113402,3.345096580544463,13.39010214175746,0.0,strong_right_skew,log1p_candidate,양수 기반 강한 우측 왜도라 필요시 log1p 변환을 검토할 수 있음
+bike_rentals,34920,1251,0.668041237113402,2.671609727463988,7.693104755781493,0.0,strong_right_skew,log1p_candidate,양수 기반 강한 우측 왜도라 필요시 log1p 변환을 검토할 수 있음
+bike_returns,34920,1254,0.6677835051546391,2.635155898441188,7.312307230083554,0.0,strong_right_skew,log1p_candidate,양수 기반 강한 우측 왜도라 필요시 log1p 변환을 검토할 수 있음
+direct_radiation,34920,733,0.538631156930126,1.7563893897143907,1.9925312386646281,0.0,strong_right_skew,log1p_candidate,양수 기반 강한 우측 왜도라 필요시 log1p 변환을 검토할 수 있음
+apparent_temperature,34920,657,0.0020332187857961055,-0.05331928716148735,-1.1226167342114852,0.0,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+bus_alightings,25139,824,0.0,-0.18855744522713022,-0.8564129979440476,7.281342622729338e-116,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+bus_boardings,25139,823,0.0,-0.1178673174947345,-0.7971733538981121,5.812570996654497e-100,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+cloud_cover,34920,101,0.23493699885452463,-0.15976881724759107,-1.8096293420876215,0.0,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+cloud_cover_high,34920,101,0.48393470790378007,0.5320411848725157,-1.601115604118588,0.0,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+cloud_cover_low,34920,101,0.5061282932416953,1.3939500319195757,0.22932498115173505,2.3163556375635755e-204,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+cloud_cover_mid,34920,101,0.5297250859106529,1.3132568857707188,-0.017351853312197463,1.6719079469549133e-193,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+dew_point_2m,34920,557,0.0013745704467353953,-0.3326980514419287,-0.8435589031524207,1.6183278325377103e-126,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+diffuse_radiation,34920,414,0.46426116838487974,1.2323121313130792,0.6953033831654429,2.0774417191786426e-194,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+estimated_active_cars_change,34920,26158,0.25,-0.18108306287071535,4.235182890285261,1.2896149926490947e-122,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+hour_cos,34920,22,0.0,1.9852720555390194e-16,-1.500042957786815,0.0,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+hour_sin,34920,22,0.041666666666666664,4.8489703403997075e-17,-1.5000429577868148,0.0,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+month_cos,34920,11,0.0,0.012603103627811446,-1.5024874899668337,0.0,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+month_sin,34920,11,0.0,0.007610256267795114,-1.4963491061763317,0.0,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+pressure_msl,34920,467,0.0,-0.035164919879011505,-0.8088593973955058,2.717211933293823e-80,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+relative_humidity_2m,34920,89,0.0,-0.5649198812590759,-0.6663434594927242,8.717293002426063e-99,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+shortwave_radiation,34920,916,0.46426116838487974,1.300351360143511,0.4515624423411526,2.335263986575223e-193,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+subway_alightings,34920,1053,0.06323024054982818,0.14069742550597839,-0.9773613408881268,2.6543909752359447e-199,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+subway_boardings,34920,1039,0.07554410080183276,0.2522956886249618,-0.5253687192964533,1.719097535654493e-30,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+sunshine_duration,34920,2358,0.6167239404352807,0.6446431914142337,-1.5430767964940388,0.0,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+surface_pressure,34920,456,0.0,-0.043210573402984606,-0.7942896641055919,2.211019128341427e-112,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+temperature_2m,34920,540,0.001575028636884307,-0.20290970753985318,-1.058121608142619,0.0,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+wind_direction_10m,34920,360,0.0,-0.08526436879387447,-1.3048113764342448,0.0,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+wind_gusts_10m,34920,188,0.0,0.9477833758505535,0.8580536162949151,2.512342691997898e-139,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+wind_speed_10m,34920,338,0.0008018327605956472,1.037476873206017,1.3345330841139136,1.3103089403029745e-184,non_normal,standard_scaler_enough,정규분포는 아니지만 현재 Ridge에서는 표준화만으로도 실무상 충분
+evening_event_count,34920,14,0.815807560137457,2.432310005138615,4.918700312398044,0.0,sparse_or_discrete,review_only_keep_raw,희소/이산형 feature라 정규분포 판단보다 발생 자체의 의미가 더 큼
+event_count,34920,22,0.8123711340206186,2.1718490786866678,3.3244722873061665,0.0,sparse_or_discrete,review_only_keep_raw,희소/이산형 feature라 정규분포 판단보다 발생 자체의 의미가 더 큼
+free_event_count,34920,21,0.8123711340206186,2.188404043944594,3.376075820246209,0.0,sparse_or_discrete,review_only_keep_raw,희소/이산형 feature라 정규분포 판단보다 발생 자체의 의미가 더 큼
+paid_event_count,34920,4,0.8783505154639175,3.0752738032191,9.463216196001174,0.0,sparse_or_discrete,review_only_keep_raw,희소/이산형 feature라 정규분포 판단보다 발생 자체의 의미가 더 큼
+precipitation,34920,138,0.8547250859106529,10.730857791211013,171.56316863711254,0.0,sparse_or_discrete,review_only_keep_raw,희소/이산형 feature라 정규분포 판단보다 발생 자체의 의미가 더 큼
+rain,34920,138,0.8628579610538374,10.813343905056717,173.4379890962462,0.0,sparse_or_discrete,review_only_keep_raw,희소/이산형 feature라 정규분포 판단보다 발생 자체의 의미가 더 큼
+snow_depth,34920,12,0.8635738831615121,4.490751972054976,26.509847789951777,0.0,sparse_or_discrete,review_only_keep_raw,희소/이산형 feature라 정규분포 판단보다 발생 자체의 의미가 더 큼
+snowfall,34920,22,0.9890893470790378,21.202856757551647,563.9073751794239,0.0,sparse_or_discrete,review_only_keep_raw,희소/이산형 feature라 정규분포 판단보다 발생 자체의 의미가 더 큼
+weather_code,34920,13,0.3700458190148912,2.0706334365632335,2.4925273617624937,0.0,sparse_or_discrete,review_only_keep_raw,희소/이산형 feature라 정규분포 판단보다 발생 자체의 의미가 더 큼
