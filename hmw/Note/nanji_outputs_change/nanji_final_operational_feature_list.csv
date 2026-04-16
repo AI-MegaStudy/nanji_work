@@ -8,4 +8,4 @@ hour_cos,cycle
 month_sin,cycle
 month_cos,cycle
 is_holiday,calendar
-wind_gusts_10m,weather
+temperature_2m,weather
